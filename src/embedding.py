@@ -3,8 +3,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-from src.data_loader import load_all_documents
-
 
 class EmbeddingPipeline:
 
@@ -32,7 +30,16 @@ class EmbeddingPipeline:
         return chunks
 
     def embed_chunks(self, chunks: List[Any]) -> np.ndarray:
-        texts = [chunk.page_content for chunk in chunks]
+        texts = []
+        for chunk in chunks:
+            raw_content = getattr(chunk, "page_content", "") or ""
+            clean_content = str(raw_content).encode("utf-8", "ignore").decode("utf-8")
+            if clean_content.strip():
+                texts.append(clean_content)
+
+        if not texts:
+            raise ValueError("No extractable text found in the document chunks.")
+
         print(f"[INFO] Generating embeddings for {len(texts)} chunks...")
 
         embeddings = self.model.encode(

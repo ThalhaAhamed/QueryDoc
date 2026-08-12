@@ -1,19 +1,18 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
-  Home, 
   MessageSquare, 
   Files, 
   FolderOpen, 
   BarChart2, 
   Settings, 
   Server,
-  Database
+  Database,
+  FileSearch
 } from 'lucide-react';
 import './Sidebar.css';
 
 const navItems = [
-  { icon: Home, label: 'Dashboard', path: '/' },
   { icon: MessageSquare, label: 'Chats', path: '/chat' },
   { icon: Files, label: 'Documents', path: '/documents' },
   { icon: FolderOpen, label: 'Collections', path: '/collections' },
@@ -26,7 +25,13 @@ export default function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-header">
         <div className="logo">
-          <span className="logo-text">QueryDoc</span>
+          <div className="logo-icon-wrapper">
+            <FileSearch className="logo-icon" size={18} />
+          </div>
+          <div className="logo-text-group">
+            <span className="logo-text">QueryDoc</span>
+            <span className="logo-badge">RAG</span>
+          </div>
         </div>
       </div>
       

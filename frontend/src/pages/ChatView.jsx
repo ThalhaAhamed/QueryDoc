@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { Send, FileText, UploadCloud, ChevronDown } from 'lucide-react';
 import { sendChatMessage } from '../api';
@@ -82,7 +81,7 @@ export default function ChatView() {
                   {msg.role === 'user' ? (
                     msg.content
                   ) : (
-                    <ReactMarkdown className="markdown-body">{msg.content}</ReactMarkdown>
+                    <div className="markdown-body"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
                   )}
                 </div>
               </div>

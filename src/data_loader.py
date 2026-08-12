@@ -1,18 +1,17 @@
 from pathlib import Path
 from typing import List, Any
 
-from langchain_community.document_loaders import PyPDFLoader, TextLoader
-from langchain_community.document_loaders import Docx2txtLoader
+from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader, CSVLoader
 
 
-SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".docx", ".md"}
+SUPPORTED_EXTENSIONS = {".pdf", ".txt", ".docx", ".md", ".csv"}
 
 
 def load_single_document(file_path: str) -> List[Any]:
     """
     Load a single document file and return LangChain document objects.
 
-    Supported: PDF, TXT, DOCX, Markdown
+    Supported: PDF, TXT, DOCX, Markdown, CSV
     """
     path = Path(file_path).resolve()
     ext = path.suffix.lower()
@@ -41,12 +40,20 @@ def load_single_document(file_path: str) -> List[Any]:
             documents = loader.load()
             print(f"[INFO] Loaded text file: {path.name}")
 
+        elif ext == ".csv":
+            loader = CSVLoader(str(path), encoding="utf-8")
+            documents = loader.load()
+            print(f"[INFO] Loaded CSV file: {path.name}")
+
     except Exception as e:
         print(f"[ERROR] Failed to load {path.name}: {e}")
         raise
 
-    # Tag each document with source filename
+    # Tag each document with source filename and sanitize text
     for doc in documents:
+        if hasattr(doc, "page_content") and doc.page_content:
+            raw_text = str(doc.page_content)
+            doc.page_content = raw_text.encode("utf-8", "ignore").decode("utf-8")
         doc.metadata["source_filename"] = path.name
         doc.metadata["source_path"] = str(path)
 
@@ -116,6 +123,17 @@ def load_all_documents(data_dir: str) -> List[Any]:
             print(f"[DEBUG] Loaded {len(loaded)} docs from {md_file}")
         except Exception as e:
             print(f"[ERROR] Failed to load MD {md_file}: {e}")
+
+    # CSV files
+    csv_files = list(data_path.glob("**/*.csv"))
+    for csv_file in csv_files:
+        try:
+            loader = CSVLoader(str(csv_file), encoding="utf-8")
+            loaded = loader.load()
+            documents.extend(loaded)
+            print(f"[DEBUG] Loaded {len(loaded)} docs from {csv_file}")
+        except Exception as e:
+            print(f"[ERROR] Failed to load CSV {csv_file}: {e}")
 
     print(f"[INFO] Total documents loaded: {len(documents)}")
     return documents

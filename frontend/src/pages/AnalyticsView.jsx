@@ -103,6 +103,7 @@ export default function AnalyticsView() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
                 <XAxis dataKey="time" stroke="var(--border-color)" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
+                <YAxis stroke="var(--border-color)" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
                 <Tooltip 
                   contentStyle={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)', borderRadius: '8px' }} 
                 />

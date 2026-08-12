@@ -4,6 +4,7 @@ Serves the web application frontend and exposes the RAG API.
 """
 import os
 import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -12,25 +13,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- App setup ---
-app = FastAPI(
-    title="QueryDoc",
-    description="AI-powered document assistant using Retrieval-Augmented Generation",
-    version="1.0.0",
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # --- Initialize RAG engine and registries ---
 from src.search import RAGSearch
 from src.document_registry import DocumentRegistry
 from src import data_loader as data_loader_module
+from src.ingestion_queue import ingestion_queue
 
 print("[STARTUP] Initializing QueryDoc engine...")
 
@@ -45,6 +32,34 @@ doc_registry = DocumentRegistry(persist_dir="faiss_store")
 print(f"[STARTUP] Loaded {doc_registry.get_document_count()} registered documents.")
 print(f"[STARTUP] FAISS stats: {rag_engine.vectorstore.get_stats()}")
 
+# Wire ingestion queue with dependencies
+ingestion_queue.init(rag_engine.vectorstore, doc_registry, data_loader_module)
+
+
+# --- Lifespan: start/stop background worker ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    ingestion_queue.start()
+    yield
+    await ingestion_queue.stop()
+
+
+# --- App setup ---
+app = FastAPI(
+    title="QueryDoc",
+    description="AI-powered document assistant using Retrieval-Augmented Generation",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # --- Wire up API routers ---
 from src.api.chat import router as chat_router, init_chat
 from src.api.documents import router as docs_router, init_documents
@@ -52,7 +67,7 @@ from src.api.status import router as status_router, init_status
 from src.api.settings import router as settings_router, get_settings
 
 init_chat(rag_engine, get_settings())
-init_documents(rag_engine.vectorstore, doc_registry, data_loader_module)
+init_documents(rag_engine.vectorstore, doc_registry, data_loader_module, ingestion_queue)
 init_status(rag_engine, doc_registry)
 
 app.include_router(chat_router)

@@ -1,0 +1,406 @@
+/* DocumentsView.css */
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.docs-container {
+  padding: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 1200px;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.docs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.docs-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.docs-subtitle {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.docs-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Jobs toggle button ──────────────────────────────────────────────────── */
+.jobs-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  position: relative;
+}
+.jobs-toggle.has-active {
+  color: var(--status-warning);
+}
+.jobs-badge {
+  background: var(--status-warning);
+  color: #000;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  line-height: 1.4;
+}
+
+/* ── Jobs Panel ─────────────────────────────────────────────────────────── */
+.jobs-panel {
+  background: var(--bg-base);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  animation: fadeSlideDown 0.15s ease;
+}
+
+@keyframes fadeSlideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.jobs-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+.jobs-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.jobs-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+.job-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.78rem;
+}
+.job-row:last-child { border-bottom: none; }
+.job-icon   { flex-shrink: 0; }
+.job-filename {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-main);
+}
+.job-detail {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Drop Zone ──────────────────────────────────────────────────────────── */
+.drop-zone {
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: transparent;
+}
+.drop-zone:hover,
+.drop-zone.dragging {
+  border-color: var(--accent-primary);
+  background: rgba(250, 250, 250, 0.03);
+}
+.drop-zone.dragging {
+  background: rgba(250, 250, 250, 0.06);
+}
+.drop-icon {
+  color: var(--text-muted);
+  transition: color 0.15s;
+}
+.drop-zone:hover .drop-icon,
+.drop-zone.dragging .drop-icon {
+  color: var(--accent-primary);
+}
+.drop-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.drop-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+/* ── Search Bar ─────────────────────────────────────────────────────────── */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-base);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  transition: border-color 0.15s;
+}
+.search-bar:focus-within {
+  border-color: var(--text-muted);
+}
+.search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 0.82rem;
+  color: var(--text-main);
+}
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+.search-btn {
+  font-size: 0.75rem;
+  padding: 3px 10px;
+}
+
+/* ── Document Grid ──────────────────────────────────────────────────────── */
+.docs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  transition: opacity 0.1s ease;
+}
+.docs-grid.is-loading {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.doc-card {
+  background: var(--bg-base);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.15s ease, transform 0.1s ease;
+}
+.doc-card:hover {
+  border-color: var(--text-muted);
+  transform: translateY(-1px);
+}
+
+.doc-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.doc-type-icon {
+  color: var(--text-muted);
+}
+.doc-card-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.doc-card:hover .doc-card-actions {
+  opacity: 1;
+}
+.doc-action-btn {
+  padding: 3px !important;
+}
+.delete-btn:hover {
+  color: #F87171 !important;
+  background: rgba(248, 113, 113, 0.1) !important;
+}
+
+.doc-filename {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 0;
+}
+.doc-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.meta-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.meta-value {
+  font-size: 0.78rem;
+  color: var(--text-main);
+}
+
+.doc-card-footer {
+  display: flex;
+  align-items: center;
+}
+
+/* ── Status Badge ───────────────────────────────────────────────────────── */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid;
+}
+
+/* ── Loading / Empty States ─────────────────────────────────────────────── */
+.docs-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 2rem 0;
+}
+.docs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 4rem 2rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+.docs-empty-icon {
+  opacity: 0.2;
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+.pag-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+.pag-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.pag-info {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* ── Delete Modal ───────────────────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+  animation: fadeIn 0.1s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  width: 360px;
+  animation: scaleIn 0.15s ease;
+}
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+.modal-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+.modal-body {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
+}
+.modal-body strong {
+  color: var(--text-main);
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.btn-danger {
+  background: #7f1d1d;
+  color: #FCA5A5;
+  border: 1px solid #991b1b;
+  padding: 5px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-danger:hover {
+  background: #991b1b;
+}
+
+/* ── Spinner ────────────────────────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spin {
+  animation: spin 1s linear infinite;
+}

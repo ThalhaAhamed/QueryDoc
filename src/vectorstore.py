@@ -5,7 +5,7 @@ import pickle
 import re
 from typing import List, Any, Dict, Optional
 from sentence_transformers import SentenceTransformer
-from src.embedding import EmbeddingPipeline
+from .embedding import EmbeddingPipeline
 from rank_bm25 import BM25Okapi
 
 class FaissVectorStore:
@@ -55,10 +55,14 @@ class FaissVectorStore:
         chunks = emb_pipe.chunk_documents(documents)
         embeddings = emb_pipe.embed_chunks(chunks)
 
-        metadatas = [
-            {"text": chunk.page_content}
-            for chunk in chunks
-        ]
+        metadatas = []
+        for chunk in chunks:
+            meta = {"text": chunk.page_content}
+            if hasattr(chunk, "metadata") and chunk.metadata:
+                meta["source_filename"] = chunk.metadata.get("source_filename", "")
+                meta["source_path"] = chunk.metadata.get("source_path", "")
+                meta["page"] = chunk.metadata.get("page", -1)
+            metadatas.append(meta)
 
         self.add_embeddings(
             np.array(embeddings).astype("float32"),
@@ -70,7 +74,12 @@ class FaissVectorStore:
 
         print(f"[INFO] Vector store built and saved to {self.persist_dir}")
 
-    def add_documents(self, documents: List[Any], source_id: str = None) -> int:
+    def add_documents(self, documents: List[Any], source_id: str = None, skip_bm25_rebuild: bool = False) -> int:
+        """
+        Embed and index a list of documents.
+        Set skip_bm25_rebuild=True during batch ingestion to defer the
+        expensive full-corpus BM25 rebuild until finalize_batch() is called.
+        """
         emb_pipe = EmbeddingPipeline(
             model_name=self.embedding_model,
             chunk_size=self.chunk_size,
@@ -96,11 +105,19 @@ class FaissVectorStore:
             metadatas,
         )
 
-        self._rebuild_bm25()
-        self.save()
+        if not skip_bm25_rebuild:
+            self._rebuild_bm25()
+            self.save()
 
         print(f"[INFO] Incrementally added {len(chunks)} chunks for source: {source_id}")
         return len(chunks)
+
+    def finalize_batch(self):
+        """Rebuild BM25 index and persist to disk. Call once after a batch of add_documents() with skip_bm25_rebuild=True."""
+        print("[INFO] Finalizing batch: rebuilding BM25 and saving index...")
+        self._rebuild_bm25()
+        self.save()
+        print(f"[INFO] Batch finalized. Total vectors: {self.index.ntotal if self.index else 0}")
 
     def delete_by_source(self, source_id: str) -> bool:
         if self.index is None or not self.metadata:
@@ -211,7 +228,8 @@ class FaissVectorStore:
             return []
 
         # 1. Dense Search
-        query_emb = self.model.encode([query_text]).astype("float32")
+        clean_query = str(query_text or "").encode("utf-8", "ignore").decode("utf-8")
+        query_emb = self.model.encode([clean_query]).astype("float32")
         dense_results = self.search_dense(query_emb, top_k=top_k * 2)
 
         # 2. Sparse Search (BM25)

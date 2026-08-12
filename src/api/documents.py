@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -12,7 +13,12 @@ doc_registry = None
 data_loader_module = None
 _ingestion_queue = None
 
-UPLOAD_DIR = "uploads"
+def _get_base_dir():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+UPLOAD_DIR = os.path.join(_get_base_dir(), "uploads")
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md", ".csv"}
 
 

@@ -3,6 +3,7 @@ QueryDoc — FastAPI Server
 Serves the web application frontend and exposes the RAG API.
 """
 import os
+import sys
 import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -11,7 +12,20 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-load_dotenv()
+# ---------------------------------------------------------------------------
+# Path resolution — works for both dev and PyInstaller frozen mode
+# ---------------------------------------------------------------------------
+
+def _get_base_dir():
+    """Return the application root directory."""
+    if getattr(sys, "frozen", False):
+        # PyInstaller bundle — exe lives in dist/QueryDoc/
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+BASE_DIR = _get_base_dir()
+
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # --- Initialize RAG engine and registries ---
 from src.search import RAGSearch
@@ -21,13 +35,15 @@ from src.ingestion_queue import ingestion_queue
 
 print("[STARTUP] Initializing QueryDoc engine...")
 
+FAISS_DIR = os.path.join(BASE_DIR, "faiss_store")
+
 rag_engine = RAGSearch(
-    persist_dir="faiss_store",
+    persist_dir=FAISS_DIR,
     embedding_model="all-MiniLM-L6-v2",
     llm_model="llama-3.1-8b-instant",
 )
 
-doc_registry = DocumentRegistry(persist_dir="faiss_store")
+doc_registry = DocumentRegistry(persist_dir=FAISS_DIR)
 
 print(f"[STARTUP] Loaded {doc_registry.get_document_count()} registered documents.")
 print(f"[STARTUP] FAISS stats: {rag_engine.vectorstore.get_stats()}")
@@ -76,7 +92,7 @@ app.include_router(status_router)
 app.include_router(settings_router)
 
 # --- Static files ---
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -92,6 +108,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "server:app",
         host="0.0.0.0",
-        port=8000,
-        reload=True,
+        port=8765,
+        reload=not getattr(sys, "frozen", False),  # disable reload in exe mode
     )

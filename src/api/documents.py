@@ -48,6 +48,9 @@ async def upload_documents(files: List[UploadFile] = File(...)):
     results = []
 
     for file in files:
+        if not file.filename:
+            results.append({"filename": None, "status": "error", "message": "No filename provided."})
+            continue
         ext = os.path.splitext(file.filename)[1].lower()
         if ext not in SUPPORTED_EXTENSIONS:
             results.append({
@@ -79,6 +82,7 @@ async def upload_documents(files: List[UploadFile] = File(...)):
             continue
 
         # Register document with status='queued'
+        assert doc_registry is not None
         doc_id = doc_registry.add_document(
             filename=os.path.basename(file_path),
             file_size=file_size,

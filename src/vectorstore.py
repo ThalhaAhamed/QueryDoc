@@ -74,7 +74,7 @@ class FaissVectorStore:
 
         print(f"[INFO] Vector store built and saved to {self.persist_dir}")
 
-    def add_documents(self, documents: List[Any], source_id: str = None, skip_bm25_rebuild: bool = False) -> int:
+    def add_documents(self, documents: List[Any], source_id: Optional[str] = None, skip_bm25_rebuild: bool = False) -> int:
         """
         Embed and index a list of documents.
         Set skip_bm25_rebuild=True during batch ingestion to defer the
@@ -152,7 +152,7 @@ class FaissVectorStore:
         print(f"[INFO] Deleted {removed_count} vectors for source: {source_id}")
         return True
 
-    def add_embeddings(self, embeddings: np.ndarray, metadatas: List[Any] = None):
+    def add_embeddings(self, embeddings: np.ndarray, metadatas: Optional[List[Any]] = None):
         dim = embeddings.shape[1]
         if self.index is None:
             self.index = faiss.IndexFlatL2(dim)
@@ -228,8 +228,8 @@ class FaissVectorStore:
             return []
 
         # 1. Dense Search
-        clean_query = str(query_text or "").encode("utf-8", "ignore").decode("utf-8")
-        query_emb = self.model.encode([clean_query]).astype("float32")
+        clean_query = (query_text or "").encode("utf-8", "ignore").decode("utf-8")
+        query_emb = np.array(self.model.encode([clean_query])).astype("float32")
         dense_results = self.search_dense(query_emb, top_k=top_k * 2)
 
         # 2. Sparse Search (BM25)

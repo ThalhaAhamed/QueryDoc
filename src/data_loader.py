@@ -31,7 +31,7 @@ def load_single_document(file_path: str) -> List[Any]:
             print(f"[INFO] Loaded {len(documents)} pages from PDF: {path.name}")
 
         elif ext == ".docx":
-            loader = Docx2txtLoader(str(path))
+            loader = Docx2txtLoader(str(path))  # type: ignore[abstract]
             documents = loader.load()
             print(f"[INFO] Loaded DOCX: {path.name}")
 
@@ -106,7 +106,7 @@ def load_all_documents(data_dir: str) -> List[Any]:
     docx_files = list(data_path.glob("**/*.docx"))
     for docx_file in docx_files:
         try:
-            loader = Docx2txtLoader(str(docx_file))
+            loader = Docx2txtLoader(str(docx_file))  # type: ignore[abstract]
             loaded = loader.load()
             documents.extend(loaded)
             print(f"[DEBUG] Loaded {len(loaded)} docs from {docx_file}")

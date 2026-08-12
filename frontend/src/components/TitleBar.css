@@ -1,0 +1,82 @@
+/* ========================================================================
+   Custom Window Title Bar
+   Sits at the very top of the app in frameless pywebview mode.
+   The bar itself is a drag region; buttons are interactive (non-draggable).
+   ======================================================================== */
+
+.titlebar {
+  height: 32px;
+  min-height: 32px;
+  background-color: var(--bg-base);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 9999;
+  flex-shrink: 0;
+}
+
+/* pywebview-drag-region is a special class recognized by pywebview
+   to make the element function as a window drag handle */
+.pywebview-drag-region {
+  -webkit-app-region: drag;
+}
+
+.titlebar-title {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding-left: 12px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+/* ---- Control buttons ---- */
+
+.titlebar-controls {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-btn {
+  width: 46px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+}
+
+.titlebar-btn:active {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Close button gets the classic red treatment */
+.titlebar-btn--close:hover {
+  background-color: #e81123;
+  color: #ffffff;
+}
+
+.titlebar-btn--close:active {
+  background-color: #c50f1f;
+  color: #ffffff;
+}
+
+/* Restore icon (Copy) should be slightly rotated to look like overlapping windows */
+.titlebar-btn--maximize svg {
+  /* The Copy icon from lucide already looks like overlapping rectangles */
+}

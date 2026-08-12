@@ -1,8 +1,8 @@
 import os
 import time
 from dotenv import load_dotenv
-from src.vectorstore import FaissVectorStore
-from src.telemetry import TelemetryTracer
+from .vectorstore import FaissVectorStore
+from .telemetry import TelemetryTracer
 from langchain_groq import ChatGroq
 from typing import Dict, Any, Optional
 from sentence_transformers import CrossEncoder
@@ -96,10 +96,10 @@ class RAGSearch:
                 },
             }
 
-        texts = [r["metadata"].get("text", "") for r in results]
-        pairs = [[query, text] for text in texts]
+        texts: list[str] = [r["metadata"].get("text", "") for r in results]
+        pairs: list[tuple[str, str]] = [(query, text) for text in texts]
         
-        rerank_scores = self.reranker.predict(pairs)
+        rerank_scores = self.reranker.predict(pairs)  # type: ignore[call-overload]
         
         for i, score in enumerate(rerank_scores):
             results[i]["rerank_score"] = float(score)
@@ -159,7 +159,7 @@ Answer:"""
         response = llm.invoke([prompt])
         generation_time = (time.time() - generation_start) * 1000
 
-        output_tokens = self.count_tokens(response.content)
+        output_tokens = self.count_tokens(str(response.content))
 
         # 4. Telemetry Logging
         self.tracer.log_request(

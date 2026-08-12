@@ -160,6 +160,12 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,  # No console window — splash screen handles the loading UI
+    # PyInstaller >=6.0 defaults to nesting bundled data under an "_internal"
+    # subfolder. server.py/launcher.py resolve static/, src/, and their own
+    # runtime files (.env, faiss_store, uploads) relative to
+    # os.path.dirname(sys.executable) — i.e. they expect the flat pre-6.0
+    # layout. "." restores that so bundled data lands next to the exe.
+    contents_directory=".",
 )
 
 coll = COLLECT(

@@ -22,7 +22,7 @@ const mockLatencyData = [
 
 export default function AnalyticsView() {
   return (
-    <div style={{ padding: 'var(--spacing-xl)' }}>
+    <div style={{ padding: 'var(--spacing-xl)', height: '100%', overflowY: 'auto' }}>
       <div style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem' }}>Analytics Dashboard</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Monitor system performance and query metrics.</p>

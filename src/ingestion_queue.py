@@ -4,6 +4,7 @@ Processes document uploads in the background so HTTP handlers return immediately
 Prevents timeout on large uploads and batches BM25 rebuilds for efficiency.
 """
 import asyncio
+import os
 import time
 import uuid
 from datetime import datetime
@@ -58,6 +59,10 @@ class IngestionQueue:
         self._data_loader = None
         self._worker_task: Optional[asyncio.Task] = None
         self._needs_finalize: bool = False
+        # (doc_id, chunk_count) pairs embedded in-memory but not yet flushed
+        # to disk by finalize_batch(). The registry is only updated to
+        # "ready" once these are actually persisted — see _finalize().
+        self._pending_ready: list = []
 
     def init(self, vectorstore, doc_registry, data_loader_module):
         self._vectorstore = vectorstore
@@ -68,6 +73,37 @@ class IngestionQueue:
         """Start the background worker. Call from the FastAPI lifespan startup."""
         self._worker_task = asyncio.create_task(self._worker())
         print("[IngestionQueue] Background worker started.")
+        self.requeue_stale_jobs()
+
+    def requeue_stale_jobs(self) -> int:
+        """
+        Re-submit documents left in 'queued' or 'processing' state from a
+        previous run (e.g. the app was closed or crashed mid-ingestion).
+        Without this, such documents stay stuck forever since the in-memory
+        queue starts empty on every launch.
+        """
+        if self._doc_registry is None:
+            return 0
+
+        count = 0
+        for doc in self._doc_registry.get_all_documents():
+            if doc.get("status") not in ("queued", "processing"):
+                continue
+
+            file_path = doc.get("file_path", "")
+            if file_path and os.path.exists(file_path):
+                self.submit_job(
+                    doc_id=doc["id"],
+                    filename=doc.get("filename", ""),
+                    file_path=file_path,
+                )
+                count += 1
+            else:
+                self._doc_registry.update_document(doc["id"], status="error")
+
+        if count:
+            print(f"[IngestionQueue] Re-queued {count} stale job(s) from a previous session.")
+        return count
 
     async def stop(self):
         """Gracefully stop the worker. Call from the FastAPI lifespan shutdown."""
@@ -119,13 +155,7 @@ class IngestionQueue:
                     # No new job arrived — finalize any pending batch
                     if self._needs_finalize and self._vectorstore is not None:
                         print("[IngestionQueue] Idle timeout reached — finalizing batch...")
-                        try:
-                            await asyncio.get_event_loop().run_in_executor(
-                                None, self._vectorstore.finalize_batch
-                            )
-                        except Exception as e:
-                            print(f"[IngestionQueue] finalize_batch error: {e}")
-                        self._needs_finalize = False
+                        await asyncio.get_event_loop().run_in_executor(None, self._finalize)
                     continue
 
                 await self._process_job(job)
@@ -134,10 +164,7 @@ class IngestionQueue:
             except asyncio.CancelledError:
                 # Finalize before shutting down
                 if self._needs_finalize and self._vectorstore is not None:
-                    try:
-                        self._vectorstore.finalize_batch()
-                    except Exception:
-                        pass
+                    self._finalize()
                 raise
 
     async def _process_job(self, job: IngestionJob):
@@ -155,16 +182,21 @@ class IngestionQueue:
             chunk_count = await asyncio.get_event_loop().run_in_executor(
                 None, self._ingest_document, job
             )
+            # Embeddings are in-memory only at this point (finalize_batch() hasn't
+            # run yet). Report "ready" on the job for live UI feedback, but keep the
+            # persisted registry status at "processing" until the batch is actually
+            # flushed to disk in _finalize() — otherwise a crash/kill between now and
+            # the next finalize would leave the registry claiming a document is
+            # indexed when its chunks were never written to faiss.index/metadata.pkl,
+            # and requeue_stale_jobs() would never pick it back up since it only
+            # looks for "queued"/"processing" status.
             job.status = "ready"
             job.chunk_count = chunk_count
             job.finished_at = datetime.now().isoformat()
-            self._needs_finalize = True  # defer BM25 rebuild to batch finalize
+            self._needs_finalize = True  # defer BM25 rebuild + disk save to batch finalize
+            self._pending_ready.append((job.doc_id, chunk_count))
 
-            if self._doc_registry:
-                self._doc_registry.update_document(
-                    job.doc_id, status="ready", chunk_count=chunk_count
-                )
-            print(f"[IngestionQueue] Job {job.job_id} done — {chunk_count} chunks indexed.")
+            print(f"[IngestionQueue] Job {job.job_id} embedded — {chunk_count} chunks (pending disk flush).")
 
         except Exception as e:
             job.status = "error"
@@ -175,8 +207,34 @@ class IngestionQueue:
                 self._doc_registry.update_document(job.doc_id, status="error")
             print(f"[IngestionQueue] Job {job.job_id} failed: {e}")
 
+    def _finalize(self):
+        """
+        Persist the current batch to disk and only then commit "ready" status
+        for the documents embedded since the last finalize. Runs in a thread
+        executor (called from the worker) since it does blocking disk I/O.
+        """
+        pending = self._pending_ready
+        self._pending_ready = []
+        self._needs_finalize = False
+
+        try:
+            self._vectorstore.finalize_batch()
+        except Exception as e:
+            print(f"[IngestionQueue] finalize_batch error: {e}")
+            # Leave these documents at "processing" — requeue_stale_jobs() will
+            # retry them on next startup instead of silently losing them.
+            return
+
+        if self._doc_registry:
+            for doc_id, chunk_count in pending:
+                self._doc_registry.update_document(doc_id, status="ready", chunk_count=chunk_count)
+        print(f"[IngestionQueue] Batch finalized — {len(pending)} document(s) committed to disk.")
+
     def _ingest_document(self, job: IngestionJob) -> int:
         """Synchronous ingestion — runs in thread executor."""
+        assert self._data_loader is not None, "Data loader not initialized"
+        assert self._vectorstore is not None, "Vector store not initialized"
+
         documents = self._data_loader.load_single_document(job.file_path)
         if not documents:
             raise ValueError("Document appears to be empty.")

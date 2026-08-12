@@ -68,10 +68,18 @@ input, textarea {
 }
 
 /* Base Layout */
-.app-container {
+.app-root {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   width: 100vw;
+  overflow: hidden;
+}
+
+.app-container {
+  display: flex;
+  flex-grow: 1;
+  min-height: 0;
   overflow: hidden;
 }
 

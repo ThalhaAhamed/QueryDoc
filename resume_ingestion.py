@@ -9,10 +9,10 @@ import sys
 import time
 import gc
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
 
-from src.document_registry import DocumentRegistry
-from src import data_loader
+from document_registry import DocumentRegistry
+import data_loader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 import numpy as np
@@ -113,7 +113,7 @@ def main():
                 raise ValueError("No extractable text")
 
             # Embed
-            embeddings = model.encode(texts, show_progress_bar=False).astype("float32")
+            embeddings = np.array(model.encode(texts, show_progress_bar=False)).astype("float32")
 
             # Add to FAISS index
             if index is None:

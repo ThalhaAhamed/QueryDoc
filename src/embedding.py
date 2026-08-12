@@ -26,16 +26,26 @@ class EmbeddingPipeline:
         )
 
         chunks = splitter.split_documents(documents)
-        print(f"[INFO] Split {len(documents)} documents into {len(chunks)} chunks.")
-        return chunks
 
-    def embed_chunks(self, chunks: List[Any]) -> np.ndarray:
-        texts = []
+        # Drop empty/whitespace-only chunks here — once — so every downstream
+        # consumer (embeddings, metadata) works off the same aligned list.
+        # Filtering independently at each site risks embeddings and metadata
+        # ending up different lengths, which desyncs FAISS index positions
+        # from their metadata.
+        kept = []
         for chunk in chunks:
             raw_content = getattr(chunk, "page_content", "") or ""
             clean_content = str(raw_content).encode("utf-8", "ignore").decode("utf-8")
             if clean_content.strip():
-                texts.append(clean_content)
+                chunk.page_content = clean_content
+                kept.append(chunk)
+
+        print(f"[INFO] Split {len(documents)} documents into {len(kept)} chunks "
+              f"({len(chunks) - len(kept)} empty chunks dropped).")
+        return kept
+
+    def embed_chunks(self, chunks: List[Any]) -> np.ndarray:
+        texts = [chunk.page_content for chunk in chunks]
 
         if not texts:
             raise ValueError("No extractable text found in the document chunks.")
@@ -47,5 +57,6 @@ class EmbeddingPipeline:
             show_progress_bar=True,
         )
 
-        print(f"[INFO] Embeddings shape: {embeddings.shape}")
-        return embeddings
+        result = np.array(embeddings)
+        print(f"[INFO] Embeddings shape: {result.shape}")
+        return result

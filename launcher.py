@@ -32,6 +32,15 @@ APP_DIR = get_app_dir()
 # Set the working directory so that relative paths in the app resolve correctly
 os.chdir(APP_DIR)
 
+# In a PyInstaller windowed build (console=False) sys.stdout/sys.stderr are None,
+# so any print() or tqdm progress bar (e.g. during model loading) raises
+# AttributeError and silently kills whichever thread hits it first.
+if getattr(sys, "frozen", False):
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w")
+
 # ---------------------------------------------------------------------------
 # Logging — write to a log file next to the exe
 # ---------------------------------------------------------------------------
@@ -199,15 +208,18 @@ def start_server():
 
     logger.info("Starting Uvicorn server on %s:%s ...", HOST, PORT)
 
-    config = uvicorn.Config(
-        "server:app",
-        host=HOST,
-        port=PORT,
-        log_level="info",
-        reload=False,  # reload is incompatible with PyInstaller
-    )
-    _uvicorn_server = uvicorn.Server(config)
-    _uvicorn_server.run()
+    try:
+        config = uvicorn.Config(
+            "server:app",
+            host=HOST,
+            port=PORT,
+            log_level="info",
+            reload=False,  # reload is incompatible with PyInstaller
+        )
+        _uvicorn_server = uvicorn.Server(config)
+        _uvicorn_server.run()
+    except Exception:
+        logger.exception("Uvicorn server crashed during startup.")
 
 
 def wait_for_server(timeout: int = 120) -> bool:
@@ -237,7 +249,48 @@ def stop_server():
     global _uvicorn_server
     if _uvicorn_server is not None:
         logger.info("Shutting down server...")
-        _uvicorn_server.should_exit = True
+        _uvicorn_server.should_exit = True  # type: ignore[assignment]
+
+
+# ---------------------------------------------------------------------------
+# Window API — exposed to JavaScript via pywebview
+# ---------------------------------------------------------------------------
+
+class WindowApi:
+    """Methods exposed to the frontend via window.pywebview.api.*"""
+
+    def __init__(self):
+        # pywebview's Window.maximized attribute is only an init-time flag —
+        # it is never updated by maximize()/restore(), so we track real state
+        # ourselves. The window is maximized on startup (see open_ui/on_loaded).
+        self._maximized = True
+
+    def minimize(self):
+        import webview
+        win = webview.active_window()
+        if win:
+            win.minimize()
+
+    def toggle_maximize(self):
+        import webview
+        win = webview.active_window()
+        if win:
+            if self._maximized:
+                win.restore()
+                self._maximized = False
+            else:
+                win.maximize()
+                self._maximized = True
+        return self._maximized
+
+    def close(self):
+        import webview
+        win = webview.active_window()
+        if win:
+            win.destroy()
+
+
+_window_api = WindowApi()
 
 
 # ---------------------------------------------------------------------------
@@ -256,26 +309,42 @@ def open_ui():
 
         logger.info("Opening splash screen...")
 
+        # Center the splash window on screen
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32  # type: ignore[attr-defined]
+            screen_w = user32.GetSystemMetrics(0)
+            screen_h = user32.GetSystemMetrics(1)
+            splash_x = (screen_w - 520) // 2
+            splash_y = (screen_h - 400) // 2
+        except Exception:
+            splash_x, splash_y = 100, 100
+
         # Create the window with splash HTML first
         window = webview.create_window(
             title="QueryDoc — Loading...",
             html=SPLASH_HTML,
             width=520,
             height=400,
-            resizable=False,
+            x=splash_x,
+            y=splash_y,
+            resizable=True,
             frameless=True,
+            js_api=_window_api,
         )
 
         def on_loaded():
             """Called once the webview window is shown. Wait for server, then switch."""
             logger.info("Splash screen visible. Waiting for server...")
+            assert window is not None
 
             if wait_for_server():
-                # Server is ready — resize and navigate to the real app
+                # Server is ready — switch to full-screen main app
                 logger.info("Navigating to main application...")
                 window.set_title("QueryDoc — AI Document Assistant")
                 window.resize(1280, 820)
-                window.resizable = True
+                window.move(0, 0)
+                window.maximize()
                 window.load_url(SERVER_URL)
             else:
                 # Server failed to start
